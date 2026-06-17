@@ -116,6 +116,13 @@ function pinInput(n) {
         document.getElementById('adminStatus').textContent =
           '종목 ' + App.stocks.length + '개 로드됨 · ' + new Date().toLocaleTimeString('ko-KR');
         Admin.render();
+
+        // 자동 시세 가져오기 시작 (15분마다)
+        if (PriceFetch.isConfigured()) {
+          PriceFetch.startAutoFetch(15);
+          document.getElementById('adminStatus').textContent +=
+            ' · 시세 자동 연동 중 📡';
+        }
       } else {
         document.querySelectorAll('.pin-dot').forEach(d => {
           d.classList.remove('filled'); d.classList.add('error');
