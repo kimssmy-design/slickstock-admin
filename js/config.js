@@ -4,12 +4,12 @@
  * ============================================================ */
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAg5b0llifBXcZwdrg14SMXocxctnaGFhk",
-  authDomain: "slickstock-2c512.firebaseapp.com",
-  projectId: "slickstock-2c512",
-  storageBucket: "slickstock-2c512.firebasestorage.app",
-  messagingSenderId: "59971282695",
-  appId: "1:59971282695:web:2169d269173705586c07a2"
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT.firebaseapp.com",
+  projectId:         "YOUR_PROJECT_ID",
+  storageBucket:     "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "000000000000",
+  appId:             "YOUR_APP_ID"
 };
 
 /* ── 앱 전역 상수 ── */
@@ -22,7 +22,7 @@ const CONFIG = {
   DEFAULT_ADMIN_PIN:  '000000',  // 기본 관리자 PIN
 
   // ★ Google Sheets 실시간 시세 URL (아래 안내대로 설정)
-  SHEET_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPV2p0XlCwT_f1LVpcSNfEYJ9tSIfycFJIsyKf8Tw09VZN_EhkwrtjKIp_loKWXDfbKIsGHHJnEsFM/pub?output=csv',
+  SHEET_CSV_URL: 'YOUR_GOOGLE_SHEETS_CSV_URL',
 
   COLLECTIONS: {
     USERS:        'sl_users',
