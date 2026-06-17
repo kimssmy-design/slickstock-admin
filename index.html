@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="robots" content="noindex, nofollow">
+  <title>SlickStock 관리자</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <style>
+    body { background: #fff; }
+    .admin-wrap { max-width: 430px; margin: 0 auto; min-height: 100dvh; background: var(--bg); }
+    .admin-header { padding: 16px 20px; background: var(--card); border-bottom: 1px solid var(--border); }
+    .admin-header h1 { font-size: 20px; font-weight: 900; }
+    .admin-header p { font-size: 12px; color: var(--text2); margin-top: 2px; }
+    .admin-body { padding: 12px 16px; padding-bottom: 40px; }
+    .pin-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100dvh; max-width: 430px; margin: 0 auto; background: #fff; }
+    .pin-screen h2 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .pin-screen p { font-size: 13px; color: var(--text2); margin-bottom: 24px; }
+    .back-link { display: inline-block; margin-top: 16px; font-size: 13px; color: var(--text2); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<!-- PIN 인증 화면 -->
+<div id="pinScreen" class="pin-screen">
+  <div style="text-align:center;">
+    <div style="font-size:36px;margin-bottom:12px;">🔒</div>
+    <h2>관리자 인증</h2>
+    <p>6자리 비밀번호를 입력하세요</p>
+    <div class="pin-dots" id="pinDots" style="margin-bottom:24px;">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="pin-keypad" style="width:240px;">
+      <button class="pin-key" onclick="pinInput(1)">1</button>
+      <button class="pin-key" onclick="pinInput(2)">2</button>
+      <button class="pin-key" onclick="pinInput(3)">3</button>
+      <button class="pin-key" onclick="pinInput(4)">4</button>
+      <button class="pin-key" onclick="pinInput(5)">5</button>
+      <button class="pin-key" onclick="pinInput(6)">6</button>
+      <button class="pin-key" onclick="pinInput(7)">7</button>
+      <button class="pin-key" onclick="pinInput(8)">8</button>
+      <button class="pin-key" onclick="pinInput(9)">9</button>
+      <button class="pin-key fn" onclick="location.href='index.html'">돌아가기</button>
+      <button class="pin-key" onclick="pinInput(0)">0</button>
+      <button class="pin-key fn" onclick="pinDelete()">⌫</button>
+    </div>
+  </div>
+</div>
+
+<!-- 관리자 패널 (인증 후) -->
+<div id="adminPanel" class="admin-wrap" style="display:none;">
+  <div class="admin-header">
+    <h1>⚙️ SlickStock 관리자</h1>
+    <p id="adminStatus">연결 중...</p>
+  </div>
+  <div class="admin-body" id="adminContent"></div>
+</div>
+
+<!-- 토스트 -->
+<div class="toast" id="toast"></div>
+<!-- 로딩 -->
+<div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+
+<!-- JS 로드 -->
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/stock-data.js"></script>
+<script src="js/price-fetch.js"></script>
+<script src="js/admin.js"></script>
+
+<script>
+/* ── 독립 관리자 페이지 로직 ── */
+let pinCode = '';
+
+// Firebase 초기화
+firebase.initializeApp(firebaseConfig);
+App.db = firebase.firestore();
+
+// 설정 로드
+(async () => {
+  try {
+    const doc = await App.db.collection(CONFIG.COLLECTIONS.CONFIG).doc('settings').get();
+    if (doc.exists) {
+      const d = doc.data();
+      App.config.adminPin = d.adminPin || CONFIG.DEFAULT_ADMIN_PIN;
+      App.config.initialCapital = d.initialCapital || CONFIG.DEFAULT_CAPITAL;
+      App.config.marketOverride = d.marketOverride != null ? d.marketOverride : null;
+    }
+  } catch (e) {
+    console.error('설정 로드 실패:', e);
+  }
+
+  // 종목 로드
+  try {
+    const snap = await App.db.collection(CONFIG.COLLECTIONS.STOCKS).get();
+    App.stocks = [];
+    snap.forEach(doc => App.stocks.push({ id: doc.id, ...doc.data() }));
+  } catch (e) {
+    console.error('종목 로드 실패:', e);
+  }
+})();
+
+// PIN 입력
+function pinInput(n) {
+  if (pinCode.length >= 6) return;
+  pinCode += n;
+  updateDots();
+  if (pinCode.length === 6) {
+    setTimeout(() => {
+      if (pinCode === App.config.adminPin) {
+        document.getElementById('pinScreen').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'block';
+        document.getElementById('adminStatus').textContent =
+          '종목 ' + App.stocks.length + '개 로드됨 · ' + new Date().toLocaleTimeString('ko-KR');
+        Admin.render();
+      } else {
+        document.querySelectorAll('.pin-dot').forEach(d => {
+          d.classList.remove('filled'); d.classList.add('error');
+        });
+        Utils.toast('비밀번호가 틀렸어요', 'error');
+        setTimeout(() => { pinCode = ''; updateDots(); }, 500);
+      }
+    }, 150);
+  }
+}
+
+function pinDelete() {
+  pinCode = pinCode.slice(0, -1);
+  updateDots();
+}
+
+function updateDots() {
+  document.querySelectorAll('.pin-dot').forEach((d, i) => {
+    d.classList.remove('filled', 'error');
+    if (i < pinCode.length) d.classList.add('filled');
+  });
+}
+</script>
+</body>
+</html>
