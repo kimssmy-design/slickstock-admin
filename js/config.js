@@ -3,13 +3,14 @@
  *  ⚠️ 아래 firebaseConfig를 본인 Firebase 프로젝트 값으로 교체하세요!
  * ============================================================ */
 
+
 const firebaseConfig = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT.firebaseapp.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "000000000000",
-  appId:             "YOUR_APP_ID"
+  apiKey: "AIzaSyAg5b0llifBXcZwdrg14SMXocxctnaGFhk",
+  authDomain: "slickstock-2c512.firebaseapp.com",
+  projectId: "slickstock-2c512",
+  storageBucket: "slickstock-2c512.firebasestorage.app",
+  messagingSenderId: "59971282695",
+  appId: "1:59971282695:web:2169d269173705586c07a2"
 };
 
 /* ── 앱 전역 상수 ── */
@@ -19,10 +20,10 @@ const CONFIG = {
   MARKET_CLOSE_HOUR:  16,   // 장 마감 16:30
   MARKET_CLOSE_MIN:   30,
   DEFAULT_CAPITAL:    10000000,  // 기본 초기자본 1000만원
-  DEFAULT_ADMIN_PIN:  '000000',  // 기본 관리자 PIN
+  DEFAULT_ADMIN_PIN:  '901122',  // 기본 관리자 PIN
 
   // ★ Google Sheets 실시간 시세 URL (아래 안내대로 설정)
-  SHEET_CSV_URL: 'YOUR_GOOGLE_SHEETS_CSV_URL',
+  SHEET_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPV2p0XlCwT_f1LVpcSNfEYJ9tSIfycFJIsyKf8Tw09VZN_EhkwrtjKIp_loKWXDfbKIsGHHJnEsFM/pub?output=csv',
 
   COLLECTIONS: {
     USERS:        'sl_users',
