@@ -192,15 +192,27 @@ const Admin = {
         users.push({ id: doc.id, ...doc.data() });
       });
 
+      // 미거래 회원 판별 (가입 2주 이상 + 보유종목 없음 + 잔고 미변동)
+      const TWO_WEEKS = 14 * 24 * 60 * 60 * 1000;
+      let inactiveCount = 0;
+
       el.innerHTML = `
         <div style="font-size:13px;color:var(--text2);padding:8px 0;">${users.length}명 등록됨</div>
         ${users.map(u => {
           // NEW 배지: 24시간 이내 가입
           const isNew = u.createdAt && (Date.now() - (u.createdAt.toDate ? u.createdAt.toDate() : new Date(u.createdAt)).getTime()) < 24 * 60 * 60 * 1000;
+
+          // 미거래 판별: 2주 이상 + 보유종목 없음 + 잔고 = 초기자본
+          const accountAge = u.createdAt ? Date.now() - (u.createdAt.toDate ? u.createdAt.toDate() : new Date(u.createdAt)).getTime() : 0;
+          const holdingsEmpty = !u.holdings || Object.keys(u.holdings).length === 0;
+          const balanceUntouched = u.balance === (u.initialCapital || App.config.initialCapital);
+          const isInactive = accountAge > TWO_WEEKS && holdingsEmpty && balanceUntouched;
+          if (isInactive) inactiveCount++;
+
           return `
-          <div class="admin-user-row" style="flex-wrap:wrap;">
+          <div class="admin-user-row" style="flex-wrap:wrap;${isInactive ? 'opacity:0.5;background:var(--bg);' : ''}">
             <div style="cursor:pointer;flex:1;min-width:0;" onclick="Admin.showUserDetail('${Utils.esc(u.id)}')">
-              <div class="admin-user-name">${Utils.esc(u.name || u.id)} ${isNew ? '<span style="background:#FF3B30;color:#fff;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:700;">NEW</span>' : ''}</div>
+              <div class="admin-user-name">${Utils.esc(u.name || u.id)} ${isNew ? '<span style="background:#FF3B30;color:#fff;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:700;">NEW</span>' : ''} ${isInactive ? '<span style="background:#8E8E93;color:#fff;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:700;">💤 미거래</span>' : ''}</div>
               <div class="admin-user-bal">잔고 ${Utils.formatWon(u.balance)} <span style="font-size:11px;color:var(--text3);">▼ 터치해서 상세보기</span></div>
             </div>
             <div style="display:flex;gap:4px;">
@@ -212,6 +224,7 @@ const Admin = {
             <div id="userDetail_${u.id.replace(/[^a-zA-Z0-9가-힣]/g,'_')}" style="display:none;width:100%;"></div>
           </div>`;
         }).join('')}
+        ${inactiveCount > 0 ? '<div style="text-align:center;padding:10px;font-size:12px;color:var(--up);font-weight:700;">⚠️ 2주 이상 미거래 회원 ' + inactiveCount + '명</div>' : ''}
       `;
     } catch (e) {
       el.innerHTML = '<div style="color:var(--text2);padding:10px;">로드 실패</div>';
@@ -280,6 +293,7 @@ const Admin = {
       const u = doc.data();
       const holdings = u.holdings || {};
       let investTotal = 0;
+      let totalCost = 0;
       const holdingsList = [];
 
       for (const [code, h] of Object.entries(holdings)) {
@@ -288,13 +302,14 @@ const Admin = {
         const val = h.qty * stock.price;
         const cost = h.qty * h.avgPrice;
         investTotal += val;
+        totalCost += cost;
         holdingsList.push({ name: stock.name, qty: h.qty, pnl: val - cost, pnlPct: cost > 0 ? ((val - cost) / cost * 100) : 0 });
       }
 
       const totalAsset = (u.balance || 0) + investTotal;
-      const totalPnl = totalAsset - (u.initialCapital || CONFIG.DEFAULT_CAPITAL);
-      const totalPnlPct = (u.initialCapital || CONFIG.DEFAULT_CAPITAL) > 0
-        ? (totalPnl / (u.initialCapital || CONFIG.DEFAULT_CAPITAL) * 100) : 0;
+      // 보유 종목 수익률 (시드머니/추가금 무관)
+      const holdingsPnl = investTotal - totalCost;
+      const holdingsPnlPct = totalCost > 0 ? (holdingsPnl / totalCost * 100) : 0;
 
       holdingsList.sort((a, b) => b.pnlPct - a.pnlPct);
 
@@ -313,8 +328,8 @@ const Admin = {
             <span>${Utils.formatWon(investTotal)}</span>
           </div>
           <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-            <span style="color:var(--text2);">총 수익률</span>
-            <b class="${Utils.dir(totalPnl)}">${Utils.formatPct(totalPnlPct)}</b>
+            <span style="color:var(--text2);">보유종목 수익률</span>
+            <b class="${Utils.dir(holdingsPnl)}">${totalCost > 0 ? Utils.formatPct(holdingsPnlPct) : '미투자'}</b>
           </div>
           ${holdingsList.length > 0 ? '<div style="border-top:1px solid var(--border);padding-top:6px;font-size:11px;color:var(--text2);">보유 종목</div>' : ''}
           ${holdingsList.map(h => `
