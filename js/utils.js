@@ -97,6 +97,12 @@ const Utils = {
 
   /* 시간대별 새로고침 스케줄 (KST 기준) */
   getRefreshSchedule() {
+    // 관리자 강제 제어 우선
+    if (App.config.marketOverride === true)
+      return { interval: 5, mode: 'forced' };
+    if (App.config.marketOverride === false)
+      return { interval: 0, mode: 'sleep' };
+
     const now = new Date();
     const kst = new Date(now.getTime() + (9 * 60 + now.getTimezoneOffset()) * 60000);
     const h = kst.getHours();
@@ -109,13 +115,13 @@ const Utils = {
     // 08:00~09:00 → 5분
     if (time < 9 * 60)
       return { interval: 5, mode: 'pre' };
-    // 09:00~15:00 → 1시간
-    if (time < 15 * 60)
-      return { interval: 60, mode: 'market' };
-    // 15:00~16:40 → 5분
+    // 09:00~15:20 → 30분
+    if (time < 15 * 60 + 20)
+      return { interval: 30, mode: 'market' };
+    // 15:20~16:40 → 5분
     if (time < 16 * 60 + 40)
       return { interval: 5, mode: 'closing' };
-    // 16:40~22:00 → 1시간
-    return { interval: 60, mode: 'evening' };
+    // 16:40~22:00 → 시세 가져오기 정지 (마지막 가격 유지)
+    return { interval: 0, mode: 'idle' };
   }
 };
