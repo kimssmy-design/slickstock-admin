@@ -67,7 +67,10 @@ const PriceFetch = {
         }, { merge: true });
 
         // 캐시용 수집
-        priceMap[code] = { price, prevClose, change, changePct, volume: 0 };
+        const perRaw = (cols[4] || '').trim().replace(/"/g, '');
+        const per = (!perRaw || perRaw.includes('#')) ? null : Math.round(parseFloat(perRaw) * 100) / 100;
+
+        priceMap[code] = { price, prevClose, change, changePct, volume: 0, per };
 
         updated++;
       }
