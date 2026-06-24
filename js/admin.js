@@ -225,10 +225,52 @@ const Admin = {
           </div>`;
         }).join('')}
         ${inactiveCount > 0 ? '<div style="text-align:center;padding:10px;font-size:12px;color:var(--up);font-weight:700;">⚠️ 2주 이상 미거래 회원 ' + inactiveCount + '명</div>' : ''}
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+          <input id="userSearchInput" type="text" placeholder="회원 이름 검색" oninput="Admin.filterUsers(this.value)"
+            style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:13px;font-family:inherit;outline:none;">
+          <button class="admin-btn orange" style="white-space:nowrap;padding:8px 12px;" onclick="Admin.giveCapitalAll()">전체 추가금</button>
+        </div>
       `;
     } catch (e) {
       el.innerHTML = '<div style="color:var(--text2);padding:10px;">로드 실패</div>';
     }
+  },
+
+  /* 전체 추가금 지급 */
+  async giveCapitalAll() {
+    const amount = prompt('전체 회원에게 추가금 지급 (원):', '1000000');
+    if (!amount || isNaN(Number(amount))) return;
+    if (!confirm('모든 회원에게 ' + Utils.formatWon(Number(amount)) + '을 지급할까요?')) return;
+
+    Utils.showLoading(true);
+    try {
+      const snap = await App.db.collection(CONFIG.COLLECTIONS.USERS).get();
+      const batch = App.db.batch();
+      snap.forEach(doc => {
+        batch.update(doc.ref, {
+          balance: firebase.firestore.FieldValue.increment(Number(amount))
+        });
+      });
+      await batch.commit();
+      Utils.toast(snap.size + '명에게 ' + Utils.formatWon(Number(amount)) + ' 지급 완료!', 'success');
+      this.loadUsers();
+    } catch (e) {
+      Utils.toast('전체 지급 실패: ' + e.message, 'error');
+    } finally {
+      Utils.showLoading(false);
+    }
+  },
+
+  /* 회원 이름 검색 필터 */
+  filterUsers(query) {
+    const rows = document.querySelectorAll('#adminUsers .admin-user-row');
+    const q = query.toLowerCase().trim();
+    rows.forEach(row => {
+      const name = row.querySelector('.admin-user-name');
+      if (name) {
+        row.style.display = !q || name.textContent.toLowerCase().includes(q) ? '' : 'none';
+      }
+    });
   },
 
   /* 추가금 지급 */
