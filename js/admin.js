@@ -111,6 +111,16 @@ const Admin = {
         <div id="adminUsers" style="display:none;"></div>
       </div>
 
+      <!-- 공지 관리 -->
+      <div class="admin-card">
+        <div class="admin-card-title" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="Admin.toggleNotices()">
+          <span>📢 공지 관리</span>
+          <span id="noticeToggleIcon" style="font-size:12px;color:var(--text2);">▶ 펼치기</span>
+        </div>
+        <div id="noticeCount" style="font-size:12px;color:var(--text2);"></div>
+        <div id="adminNotices" style="display:none;"></div>
+      </div>
+
       <!-- 종목 관리 -->
       <div class="admin-card">
         <div class="admin-card-title">📊 종목 관리 (${App.stocks.length}개)</div>
@@ -144,6 +154,9 @@ const Admin = {
       </div>
     `;
 
+    // 공지 카운트 로드
+    this.loadNoticeCount();
+
     // 회원 목록은 접기 상태 — 토글 시 로드
     this._usersOpen = false;
   },
@@ -160,6 +173,138 @@ const Admin = {
       }
     } catch (e) {
       console.error('설정 로드 오류:', e);
+    }
+  },
+
+  /* ── 공지 관리 ── */
+  _noticesOpen: false,
+  toggleNotices() {
+    this._noticesOpen = !this._noticesOpen;
+    const el = document.getElementById('adminNotices');
+    const icon = document.getElementById('noticeToggleIcon');
+    if (this._noticesOpen) {
+      el.style.display = 'block';
+      icon.textContent = '▼ 접기';
+      this.loadNotices();
+    } else {
+      el.style.display = 'none';
+      icon.textContent = '▶ 펼치기';
+    }
+  },
+
+  async loadNoticeCount() {
+    try {
+      const doc = await App.db.collection(CONFIG.COLLECTIONS.CONFIG).doc('notices').get();
+      const items = doc.exists ? (doc.data().items || []) : [];
+      const now = Date.now();
+      const active = items.filter(n => n.expiresAt > now);
+      const el = document.getElementById('noticeCount');
+      if (el) el.textContent = active.length > 0 ? '현재 활성 공지 ' + active.length + '개' : '활성 공지 없음';
+    } catch (e) { /* 무시 */ }
+  },
+
+  async loadNotices() {
+    const el = document.getElementById('adminNotices');
+    if (!el) return;
+
+    try {
+      const doc = await App.db.collection(CONFIG.COLLECTIONS.CONFIG).doc('notices').get();
+      const items = doc.exists ? (doc.data().items || []) : [];
+      const now = Date.now();
+
+      el.innerHTML = `
+        <div style="background:var(--bg);border-radius:12px;padding:14px;margin-top:8px;margin-bottom:10px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:8px;">📝 새 공지 작성</div>
+          <input id="noticeHeadline" placeholder="헤드라인 (예: 이번주 미션!)"
+            style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:13px;font-family:inherit;margin-bottom:6px;">
+          <textarea id="noticeContent" placeholder="내용을 입력하세요" rows="3"
+            style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:13px;font-family:inherit;resize:none;margin-bottom:6px;"></textarea>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+            <span style="font-size:12px;color:var(--text2);white-space:nowrap;">공지 기간:</span>
+            <select id="noticeDuration" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:13px;font-family:inherit;">
+              <option value="1">1일</option>
+              <option value="2">2일</option>
+              <option value="3">3일</option>
+              <option value="7" selected>1주일</option>
+              <option value="14">2주일</option>
+              <option value="30">1개월</option>
+            </select>
+          </div>
+          <button class="admin-btn" style="width:100%;background:var(--green);" onclick="Admin.createNotice()">📢 공지 올리기</button>
+        </div>
+
+        ${items.length > 0 ? '<div style="font-size:13px;font-weight:700;margin-bottom:6px;">현재 등록된 공지</div>' : ''}
+        ${items.sort((a, b) => b.createdAt - a.createdAt).map(n => {
+          const isActive = n.expiresAt > now;
+          const expDate = new Date(n.expiresAt);
+          const expStr = (expDate.getMonth()+1) + '/' + expDate.getDate() + ' ' + expDate.getHours() + ':00';
+          return `<div style="padding:10px 12px;background:${isActive ? 'var(--card)' : 'var(--bg)'};border-radius:10px;margin-bottom:6px;${isActive ? 'box-shadow:var(--shadow);' : 'opacity:0.5;'}border-left:3px solid ${isActive ? 'var(--green)' : 'var(--text3)'};">
+            <div style="display:flex;justify-content:space-between;align-items:start;">
+              <div style="flex:1;">
+                <div style="font-size:14px;font-weight:700;">${Utils.esc(n.headline)}</div>
+                <div style="font-size:12px;color:var(--text2);margin-top:2px;line-height:1.5;">${Utils.esc(n.content)}</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:4px;">${isActive ? '✅ 활성' : '⏰ 만료'} · ~${expStr}</div>
+              </div>
+              <button class="admin-btn red" style="padding:4px 8px;font-size:10px;margin-left:8px;" onclick="Admin.deleteNotice('${n.id}')">삭제</button>
+            </div>
+          </div>`;
+        }).join('')}
+      `;
+    } catch (e) {
+      el.innerHTML = '<div style="color:var(--text2);padding:10px;font-size:12px;">로드 실패</div>';
+    }
+  },
+
+  async createNotice() {
+    const headline = document.getElementById('noticeHeadline').value.trim();
+    const content = document.getElementById('noticeContent').value.trim();
+    const days = Number(document.getElementById('noticeDuration').value);
+
+    if (!headline) { Utils.toast('헤드라인을 입력해주세요', 'error'); return; }
+    if (!content) { Utils.toast('내용을 입력해주세요', 'error'); return; }
+
+    Utils.showLoading(true);
+    try {
+      const now = Date.now();
+      const newNotice = {
+        id: 'notice_' + now,
+        headline, content,
+        createdAt: now,
+        expiresAt: now + days * 24 * 60 * 60 * 1000
+      };
+
+      const ref = App.db.collection(CONFIG.COLLECTIONS.CONFIG).doc('notices');
+      const doc = await ref.get();
+      const items = doc.exists ? (doc.data().items || []) : [];
+      items.push(newNotice);
+      await ref.set({ items });
+
+      Utils.toast('공지 등록 완료! 📢', 'success');
+      this.loadNotices();
+      this.loadNoticeCount();
+    } catch (e) {
+      Utils.toast('공지 등록 실패', 'error');
+    } finally {
+      Utils.showLoading(false);
+    }
+  },
+
+  async deleteNotice(noticeId) {
+    if (!confirm('이 공지를 삭제할까요?')) return;
+    Utils.showLoading(true);
+    try {
+      const ref = App.db.collection(CONFIG.COLLECTIONS.CONFIG).doc('notices');
+      const doc = await ref.get();
+      let items = doc.exists ? (doc.data().items || []) : [];
+      items = items.filter(n => n.id !== noticeId);
+      await ref.set({ items });
+      Utils.toast('공지 삭제 완료', 'success');
+      this.loadNotices();
+      this.loadNoticeCount();
+    } catch (e) {
+      Utils.toast('삭제 실패', 'error');
+    } finally {
+      Utils.showLoading(false);
     }
   },
 
@@ -197,7 +342,12 @@ const Admin = {
       let inactiveCount = 0;
 
       el.innerHTML = `
-        <div style="font-size:13px;color:var(--text2);padding:8px 0;">${users.length}명 등록됨</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+          <input id="userSearchInput" type="text" placeholder="회원 이름 검색" oninput="Admin.filterUsers(this.value)"
+            style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:13px;font-family:inherit;outline:none;">
+          <button class="admin-btn orange" style="white-space:nowrap;padding:8px 12px;" onclick="Admin.giveCapitalAll()">전체 추가금</button>
+        </div>
+        <div style="font-size:13px;color:var(--text2);padding:0 0 8px;">${users.length}명 등록됨</div>
         ${users.map(u => {
           // NEW 배지: 24시간 이내 가입
           const isNew = u.createdAt && (Date.now() - (u.createdAt.toDate ? u.createdAt.toDate() : new Date(u.createdAt)).getTime()) < 24 * 60 * 60 * 1000;
@@ -225,11 +375,6 @@ const Admin = {
           </div>`;
         }).join('')}
         ${inactiveCount > 0 ? '<div style="text-align:center;padding:10px;font-size:12px;color:var(--up);font-weight:700;">⚠️ 2주 이상 미거래 회원 ' + inactiveCount + '명</div>' : ''}
-        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
-          <input id="userSearchInput" type="text" placeholder="회원 이름 검색" oninput="Admin.filterUsers(this.value)"
-            style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:13px;font-family:inherit;outline:none;">
-          <button class="admin-btn orange" style="white-space:nowrap;padding:8px 12px;" onclick="Admin.giveCapitalAll()">전체 추가금</button>
-        </div>
       `;
     } catch (e) {
       el.innerHTML = '<div style="color:var(--text2);padding:10px;">로드 실패</div>';
