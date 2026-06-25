@@ -342,10 +342,10 @@ const Admin = {
       let inactiveCount = 0;
 
       el.innerHTML = `
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
-          <input id="userSearchInput" type="text" placeholder="회원 이름 검색" oninput="Admin.filterUsers(this.value)"
-            style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:13px;font-family:inherit;outline:none;">
-          <button class="admin-btn orange" style="white-space:nowrap;padding:8px 12px;" onclick="Admin.giveCapitalAll()">전체 추가금</button>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+          <input id="userSearchInput" type="text" placeholder="회원 검색" oninput="Admin.filterUsers(this.value)"
+            style="flex:1;min-width:120px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:13px;font-family:inherit;outline:none;">
+          <button class="admin-btn orange" style="white-space:nowrap;padding:8px 10px;font-size:12px;" onclick="Admin.giveCapitalAll()">전체추가금</button>
         </div>
         <div style="font-size:13px;color:var(--text2);padding:0 0 8px;">${users.length}명 등록됨</div>
         ${users.map(u => {
